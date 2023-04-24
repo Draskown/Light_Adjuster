@@ -1,21 +1,27 @@
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from PyQt5.QtGui import (QPalette,
                          QColor,
                          QPixmap,
-                         QFont)
+                         QFont,
+                         QImage)
 from PyQt5.QtWidgets import (QApplication,
                              QMainWindow,
                              QPushButton,
                              QLabel,
                              QWidget,
-                             QHBoxLayout,
                              QVBoxLayout,
-                             QMessageBox,
                              QLineEdit,
-                             QSlider)
+                             QSlider,
+                             QMessageBox)
+
+import cv2, numpy as np
 
 # Класс главного окна
 class Window(QMainWindow):
+    # Инициализация сигналов передачи данных
+    exposureValueChanged = pyqtSignal(int)
+    temperatureValueChanged = pyqtSignal(int)
+
     # Инициализация главного окна
     def __init__(self):
         super().__init__()
@@ -24,24 +30,24 @@ class Window(QMainWindow):
         self.initUI()
 
     #region Методы
-
     # Метод для определения интерфейса
     def initUI(self):
         # Устанавливает название окна
         self.setWindowTitle("Настройка света")
-
+        
+        # Устанавливает минимальный размер окна
         self.setMinimumSize(300, 200)
+
+        # Создаёт дополнительное окно для вывода изображения
+        self.lightMock = ImageWindow()
+        self.exposureValueChanged.connect(self.lightMock.setExposureValue)
+        self.temperatureValueChanged.connect(self.lightMock.setTemperatureValue)
 
         # Создаёт виджет, в который будут помещаться элементы управления
         centralWidget = QWidget()
 
         # Создаёт элемент вертикального расположения
         mainLayout = QVBoxLayout()
-
-        # Создаёт элемент для вывода изображения
-        imageLabel = QLabel()
-        # image = QPixmap('D:/Other/Pictures/WebCam_Frame.png').scaled(640, 480)
-        # image_label.setPixmap(image)
 
         # Создаёт поле для ввода имя пользователя
         self.userInput = QLineEdit(self)
@@ -65,45 +71,107 @@ class Window(QMainWindow):
 
     # Обрабатывает установку имени пользователя
     def setID(self):
+        # Создаёт дополнительный виджет
+        # Для второго вида окна
         widget = QWidget()
 
+        # Создаёт контейнер для элементов интерфейса
         layout = QVBoxLayout()
 
-        sliderExposure = QSlider(Qt.Horizontal)
-        sliderExposure.setMinimum(0)
-        sliderExposure.setMaximum(255)
-        sliderTemperature = QSlider(Qt.Horizontal)
-        sliderTemperature.setMinimum(0)
-        sliderTemperature.setMaximum(255)
+        # Определяет слайдер для контроля освещённости
+        self.sliderExposure = QSlider(Qt.Horizontal)
+        self.sliderExposure.setMinimum(200)
+        self.sliderExposure.setMaximum(255)
+        self.sliderExposure.valueChanged.connect(lambda: self.valueChanged("Exp"))
+        
+        # Определяет слайдер для контроля температуры света
+        self.sliderTemperature = QSlider(Qt.Horizontal)
+        self.sliderTemperature.setMinimum(0)
+        self.sliderTemperature.setMaximum(255)
+        self.sliderTemperature.valueChanged.connect(lambda: self.valueChanged("Temp"))
 
+        # Создаёт текстовые поля для определения слайдеров в окне
         labelExposure = QLabel("Яркость")
         labelExposure.setAlignment(Qt.AlignCenter)
         labelTemperature = QLabel("Температура")
         labelTemperature.setAlignment(Qt.AlignCenter)
 
+        # Добавляет созданные элементы в контейнер
         layout.addStretch()
         layout.addWidget(labelExposure)
-        layout.addWidget(sliderExposure)
+        layout.addWidget(self.sliderExposure)
         layout.addStretch()
         layout.addWidget(labelTemperature)
-        layout.addWidget(sliderTemperature)
+        layout.addWidget(self.sliderTemperature)
         layout.addStretch()
         layout.setAlignment(Qt.AlignCenter)
 
+        # Устанавливает контейнер для окна
         widget.setLayout(layout)
         self.setCentralWidget(widget)
+        
+        self.lightMock.show()
     
+    # Обрабатывает изменения значений на слайдерах
+    def valueChanged(self, slider):
+        if slider == "Exp":
+            self.exposureValueChanged.emit(self.sliderExposure.value())
+        if slider == "Temp":
+            self.temperatureValueChanged.emit(self.sliderTemperature.value())
     #endregion
 
     #region События
-    
     # Очистить фокус при клике на пустое место
     def mousePressEvent(self, e):
         if QApplication.focusWidget() is not None:
             QApplication.focusWidget().clearFocus()
-    
     #endregion
 
+
+class ImageWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # Инициализация глобальных переменных
+        self.exposure = 0
+        self.temperature = 0
+
+        # Создаёт элемент для вывода изображения
+        self.imageLabel = QLabel()
+
+        imageLayout = QVBoxLayout()
+        imageLayout.addWidget(self.imageLabel)
+        self.setLayout(imageLayout)
+
+    def setExposureValue(self, value):
+        self.exposure = value
+        self.updateImage()
+
+    def setTemperatureValue(self, value):
+        self.temperature = value
+        self.updateImage()
+
+    def updateImage(self):
+        image = np.zeros([1080, 1920, 3], dtype=np.uint8)
+        image[:] = self.exposure
+        
+        image[:, :, 2] = image[0, 0, 2] - self.temperature*0.1803921
+        image[:, :, 1] = image[0, 0, 1] - self.temperature*0.0431372
+
+        # hsvImg = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
+        
+        # hsvImg[:,:,1] = self.temperature
+
+        # image = cv2.cvtColor(hsvImg, cv2.COLOR_HSV2RGB)
+
+        qImage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888)
+        self.imageLabel.setPixmap(QPixmap.fromImage(qImage))
+
+
+
+
+
+# Устанавливает тёмную тему для приложения
 def setStyle(app):
     app.setStyle("Fusion")
 
@@ -132,7 +200,8 @@ def setStyle(app):
     app.setPalette(dark_palette)
     app.setStyleSheet("QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }")
 
-
+# Инициализирует приложение, создаёт главное окно
+# И открывает его
 def setUI():
     application = QApplication([])
     setStyle(application)

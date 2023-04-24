@@ -11,10 +11,9 @@ from PyQt5.QtWidgets import (QApplication,
                              QWidget,
                              QVBoxLayout,
                              QLineEdit,
-                             QSlider,
-                             QMessageBox)
+                             QSlider)
 
-import cv2, numpy as np
+import numpy as np
 
 # Класс главного окна
 class Window(QMainWindow):
@@ -29,7 +28,7 @@ class Window(QMainWindow):
         # Инициализация интерфейса окна
         self.initUI()
 
-    #region Методы
+    #region Методы главного окна
     # Метод для определения интерфейса
     def initUI(self):
         # Устанавливает название окна
@@ -120,14 +119,14 @@ class Window(QMainWindow):
             self.temperatureValueChanged.emit(self.sliderTemperature.value())
     #endregion
 
-    #region События
+    #region События главного окна
     # Очистить фокус при клике на пустое место
     def mousePressEvent(self, e):
         if QApplication.focusWidget() is not None:
             QApplication.focusWidget().clearFocus()
     #endregion
 
-
+# Класс второго окна
 class ImageWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -139,36 +138,41 @@ class ImageWindow(QWidget):
         # Создаёт элемент для вывода изображения
         self.imageLabel = QLabel()
 
+        # Установка интерфейса окна
         imageLayout = QVBoxLayout()
         imageLayout.addWidget(self.imageLabel)
         self.setLayout(imageLayout)
 
+    #region Методы второго окна
+    # Обрабатывает сигнал яркости с главного окна
     def setExposureValue(self, value):
         self.exposure = value
         self.updateImage()
 
+    # Обрабатывает сигнал температуры с главного окна
     def setTemperatureValue(self, value):
         self.temperature = value
         self.updateImage()
 
+    # Обновляет изображение на втором окне
     def updateImage(self):
+        # Создаётся полностью чёрное изображение
         image = np.zeros([1080, 1920, 3], dtype=np.uint8)
+        
+        # Для всез пикселей устанавливается значение яркости
         image[:] = self.exposure
         
+        # Из значений яркости вычитается значение температуры
+        # С коэффициентом для двух каналов: синего и зелёного
+        # Для достижения "тёплой" картинки
         image[:, :, 2] = image[0, 0, 2] - self.temperature*0.1803921
         image[:, :, 1] = image[0, 0, 1] - self.temperature*0.0431372
 
-        # hsvImg = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-        
-        # hsvImg[:,:,1] = self.temperature
-
-        # image = cv2.cvtColor(hsvImg, cv2.COLOR_HSV2RGB)
-
+        # Изображение преобразируется в удобный формат
+        # И выводится на второе окно
         qImage = QImage(image.data, image.shape[1], image.shape[0], QImage.Format_RGB888)
         self.imageLabel.setPixmap(QPixmap.fromImage(qImage))
-
-
-
+    #endregion
 
 
 # Устанавливает тёмную тему для приложения
@@ -199,6 +203,7 @@ def setStyle(app):
     dark_palette.setColor(QPalette.HighlightedText, BLACK)
     app.setPalette(dark_palette)
     app.setStyleSheet("QToolTip { color: #ffffff; background-color: #2a82da; border: 1px solid white; }")
+
 
 # Инициализирует приложение, создаёт главное окно
 # И открывает его

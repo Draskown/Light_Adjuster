@@ -207,7 +207,7 @@ def setStyle(app):
 
 # Инициализирует приложение, создаёт главное окно
 # И открывает его
-def setUI():
+if __name__ == "__main__":
     application = QApplication([])
     setStyle(application)
     mw = Window()

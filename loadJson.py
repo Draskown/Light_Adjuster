@@ -36,8 +36,8 @@ def loadDirs():
         for file in files:
             # Каждый файл проверяется на то, является ли он изображением
             if file.endswith("png") or file.endswith("jpg"):
-                # Пробелы в имени заменяются на _
-                label = basename(root).replace(" ", "_").lower()
+                # Узнаёт имя папки, в который файл лежит
+                label = basename(root)
                 # Если такого имени нет - добавить его в список
                 if label not in labels:
                     labels[label] = currentId

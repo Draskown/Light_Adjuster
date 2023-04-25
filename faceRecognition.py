@@ -14,9 +14,6 @@ EPOCHS = 5
 SCALE_FACTOR = 1.2
 MIN_NEIGHBOURS = 3
 
-labels = []
-directories = []
-
 def prepareDataset():
     loadDirs()
 

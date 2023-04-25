@@ -1,0 +1,20 @@
+{
+    "labels": {
+        "00": 0,
+        "01": 1,
+        "02": 2,
+        "03": 3
+    },
+    "directories": {
+        "base": "D:\\Projects\\Python\\Light Adjustment",
+        "model": "D:\\Projects\\Python\\Light Adjustment\\Model",
+        "images": "D:\\Projects\\Python\\Light Adjustment\\Images",
+        "train": "D:\\Projects\\Python\\Light Adjustment\\Images\\Train",
+        "test": "D:\\Projects\\Python\\Light Adjustment\\Images\\Test"
+    },
+    "parameters": {
+        "left": 1,
+        "right": 2,
+        "seat": 3
+    }
+}

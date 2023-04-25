@@ -1,18 +1,59 @@
 from keras_preprocessing.image import ImageDataGenerator
-from os import mkdir
+from os import mkdir, walk, remove as removeFile
 from os.path import join as pathJoin, \
-    exists as pathExists
+    exists as pathExists, basename
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D,\
     Flatten, Dense, Dropout
 from loadJson import loadDirs
+from cv2 import CascadeClassifier, imread, imwrite
 
 BATCH = 5
 DROPOUT = 0.5
 EPOCHS = 5
 
+def prepareDataset():
+    loadDirs()
+
+    from loadJson import labels, directories
+
+    faceCascade = CascadeClassifier("Cascades")
+
+    indexTest = indexTrain = 0
+
+    commonIndex = 1
+
+    currentId = 0
+    for root, dirs, files in walk(directories["images"]):
+        for file in files:
+            if file.endswith("png") or file.endswith("jpg"):
+                label = basename(root).replace(" ", "-").lower()
+                
+                filePath = pathJoin(directories["train"], label)
+                img = imread(pathJoin(filePath, file))
+
+                if commonIndex > 250:
+                    commonIndex = 0
+                else:
+                    commonIndex += 1
+
+                if commonIndex % 4 == 0:
+                    newFile = str(indexTest)
+                    newFilePath = pathJoin(directories["test"], label)
+                    indexTest += 1
+                else:
+                    newFile = str(indexTrain)
+                    indexTrain += 1
+
+                newFile += ".png"
+
+                imwrite(pathJoin(filePath, newFile))
+
+                # removeFile(pathJoin(filePath, file))
 
 def train():
+    prepareDataset()
+    
     loadDirs()
 
     from loadJson import labels, directories
@@ -62,7 +103,7 @@ def train():
         validation_steps=len(testData)
     )
 
-    if not pathExists(directories["model"]):
-        mkdir(directories["model"])
+    if not pathExists(directories["Model"]):
+        mkdir(directories["Model"])
 
-    model.save(pathJoin(directories["model"], "model1.h5"))
+    model.save(pathJoin(directories["model"], "model.h5"))

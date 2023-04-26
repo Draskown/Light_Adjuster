@@ -5,17 +5,11 @@
         "02": 2,
         "03": 3
     },
-    "directories": {
-        "base": "d:\\Projects\\Python\\Light Adjustment",
-        "model": "d:\\Projects\\Python\\Light Adjustment\\Model",
-        "images": "d:\\Projects\\Python\\Light Adjustment\\Images",
-        "train": "d:\\Projects\\Python\\Light Adjustment\\Images\\Train",
-        "test": "d:\\Projects\\Python\\Light Adjustment\\Images\\Test"
-    },
     "parameters": {
         "left": 1,
         "right": 2,
         "seat": 3
     },
-    "model_is_ok": 0
+    "model_is_ok": 1,
+    "dataset_created": 1
 }

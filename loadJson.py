@@ -1,5 +1,4 @@
-from os.path import join as pathJoin, dirname, \
-    abspath, basename
+from os.path import join as join_paths, basename
 from os import walk
 from json import load, dump
 from directories import Directories
@@ -14,18 +13,18 @@ class JsonHandler():
         self.labels = {}
 
         # Загружает категории в json файд
-        self.loadLabels()
+        self.load_labels()
     
     # Загружает найденные каталоги категорий в json файл
-    def loadLabels(self):
+    def load_labels(self):
         # Открывыает json файл, где хранятся нужные сведения
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             a = load(f)
 
         # Задаёт идентификатор для каждого имени
         # Начиная с нулевого
-        currentId = 0
-        for root, _, files in walk(self.dirs.imagesDir):
+        current_id = 0
+        for root, _, files in walk(self.dirs.images_dir):
             for file in files:
                 # Каждый файл проверяется на то, является ли он изображением
                 if file.endswith("png") or file.endswith("jpg"):
@@ -33,70 +32,72 @@ class JsonHandler():
                     label = basename(root)
                     # Если такого имени нет - добавить его в список
                     if label not in self.labels:
-                        self.labels[label] = currentId
-                        currentId += 1
+                        self.labels[label] = current_id
+                        current_id += 1
 
         # Определяет json файл для категорий
         a["labels"] = self.labels
 
         # Обновляет json файл
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "w") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "w") as f:
             dump(a, f, ensure_ascii=False, indent=4)
 
     # Возвращает состояние модели нейронной сети
-    def getModelState(self):
+    def get_model_state(self):
         # Открывает json файл
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # И возвращает нужное значение
             return load(f)["model_is_ok"]
 
     # Устанавливает состояние модели нейронной сети
-    def setModelState(self, state):
+    def set_model_state(self, state):
         # Открывает файл для чтения
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # Записывает в локальный словарь необходимое значение
             # Состояния модели
             a = load(f)
             a["model_is_ok"] = state
 
         # Открывает файл снова и перезаписывает json файл
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "w") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "w") as f:
             dump(a, f, ensure_ascii=False, indent=4)
 
     # Возвращает состояние датасета для нейронной сети
-    def getDatasetState(self):
+    def get_dataset_state(self):
         # Открывает json файл
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # И возвращает нужное значение
             return load(f)["dataset_created"]
 
     # Устанавливает состояние датасета для нейронной сети
-    def setDatasetState(self, state):
+    def set_dataset_state(self, state):
         # Открывает файл для чтения
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # Записывает в локальный словарь необходимое значение
             # Состояния модели
             a = load(f)
             a["dataset_created"] = state
 
         # Открывает файл снова и перезаписывает json файл
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "w") as f:
-            dump(a, f, ensure_ascii=False, indent=4)
-
-    def dumpParameters(self, params=None):
-        if params is None:
-            params = [0, 0, 0]
-
-        v = list(map(int, params))
-
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
-            a = load(f)
-            a["parameters"] = {"left": v[0], "right": v[1], "seat": v[2]}
-
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "w") as f:
+        with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "w") as f:
             dump(a, f, ensure_ascii=False, indent=4)
 
 
-    def pullParameters(self):
-        with open(pathJoin(self.dirs.baseDir, "mainInfo.json"), "r") as f:
-            return list(load(f)["parameters"].values())
+    # Планируется имплементировать в будущем
+    # def dump_parameters(self, params=None):
+    #     if params is None:
+    #         params = [0, 0, 0]
+
+    #     v = list(map(int, params))
+
+    #     with open(join_paths(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+    #         a = load(f)
+    #         a["parameters"] = {"left": v[0], "right": v[1], "seat": v[2]}
+
+    #     with open(join_paths(self.dirs.baseDir, "mainInfo.json"), "w") as f:
+    #         dump(a, f, ensure_ascii=False, indent=4)
+
+
+    # def pull_parameters(self):
+    #     with open(join_paths(self.dirs.baseDir, "mainInfo.json"), "r") as f:
+    #         return list(load(f)["parameters"].values())

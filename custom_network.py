@@ -38,18 +38,18 @@ class FaceReconizer():
     def prepare_dataset(self):
         # Проверка на то, был ли датасет прежде сформирован
         # И если был - выйти из метода
-        if self.json_handler.getDatasetState() == 1:
+        if self.json_handler.get_dataset_state() == 1:
             return
         
         # Для каждого из найденных категорий
         # Сделать отдельную папку в каталоге для тестовых и валидационных изображений
         # Если они не существуют
         for label in self.json_handler.labels:
-            path = join_paths(self.json_handler.dirs.testDir, label)
+            path = join_paths(self.json_handler.dirs.test_dir, label)
             if not path_exists(path):
                 mkdir(path)
             
-            path = join_paths(self.json_handler.dirs.valDir, label)
+            path = join_paths(self.json_handler.dirs.val_dir, label)
             if not path_exists(path):
                 mkdir(path)
 
@@ -58,7 +58,7 @@ class FaceReconizer():
         profile_face_cascade = cv2.CascadeClassifier("Cascades/haarcascade_profileface.xml")
 
         # Поиск всех изображений в файле проекта
-        for root, _, files in walk(self.json_handler.dirs.imagesDir):
+        for root, _, files in walk(self.json_handler.dirs.images_dir):
             # Инициализация индексов для переименования изображений
             index_test = index_train = index_val = common_index = 0
             
@@ -75,7 +75,7 @@ class FaceReconizer():
                     
                     # Создаёт путь к файлу из папки тренировочных изображений
                     # И названия категории
-                    file_path = join_paths(self.json_handler.dirs.trainDir, label)
+                    file_path = join_paths(self.json_handler.dirs.train_dir, label)
                     # Читает изображение из пути к файлу
                     img = cv2.imread(join_paths(file_path, file))
 
@@ -130,22 +130,22 @@ class FaceReconizer():
                     # Каждое четвёртое изображение из подготовленных
                     # Изображений загружается в каталог валидации
                     if common_index % 4 == 0:
-                        self.split_dataset(face, self.json_handler.dirs.valDir, label, index_val)
+                        self.split_dataset(face, self.json_handler.dirs.val_dir, label, index_val)
                         index_val += TWEAKED_IMAGES
                     # Каждое седьмое изображение из подготовленных
                     # Загружается в каталог теста
                     elif common_index % 7 == 0:
-                        self.split_dataset(face, self.json_handler.dirs.testDir, label, index_test)
+                        self.split_dataset(face, self.json_handler.dirs.test_dir, label, index_test)
                         index_test += TWEAKED_IMAGES
                     else:
-                        self.split_dataset(face, self.json_handler.dirs.trainDir, label, index_test)
+                        self.split_dataset(face, self.json_handler.dirs.train_dir, label, index_test)
                         index_train += TWEAKED_IMAGES
 
                     # Удаляет обработанное полное изображение
                     remove_file(join_paths(file_path, file))
 
         # Задать, что датасет был создан
-        self.json_handler.setDatasetState(1)
+        self.json_handler.set_dataset_state(1)
 
     # Возвращает лицо самого большого размера
     # Чтобы в приоритете был человек ближе к камере
@@ -218,7 +218,7 @@ class FaceReconizer():
 
         # Если модель обучена хорошо
         # То можно сразу перейти к детектированию
-        if self.json_handler.getModelState() == 1:
+        if self.json_handler.get_model_state() == 1:
             self.detect_person()
 
         # Инициализация структуры нейронной сети    
@@ -250,7 +250,7 @@ class FaceReconizer():
 
         # Генерация данных из тренировочного каталога
         train_data = data_generator.flow_from_directory(
-            self.json_handler.dirs.trainDir,
+            self.json_handler.dirs.train_dir,
             target_size=(64, 64),
             batch_size=BATCH,
             class_mode="categorical"
@@ -258,7 +258,7 @@ class FaceReconizer():
 
         # Генерация данных из валидационного каталога
         val_data = data_generator.flow_from_directory(
-            self.json_handler.dirs.valDir,
+            self.json_handler.dirs.val_dir,
             target_size=(64, 64),
             batch_size=BATCH,
             class_mode="categorical",
@@ -266,7 +266,7 @@ class FaceReconizer():
 
         # Генерация данных из тестового каталога
         test_data = data_generator.flow_from_directory(
-            self.json_handler.dirs.testDir,
+            self.json_handler.dirs.test_dir,
             target_size=(64, 64),
             batch_size=BATCH,
             class_mode="categorical",
@@ -288,14 +288,14 @@ class FaceReconizer():
         # Можно считать, что модель дальше обучать
         # Не имеет смысла
         if test_accuracy > 0.85:
-            self.json_handler.setModelState(1)
+            self.json_handler.set_model_state(1)
 
         # Если папка Models не существует - создать её
-        if not path_exists(self.json_handler.dirs.modelDir):
-            mkdir(self.json_handler.dirs.modelDir)
+        if not path_exists(self.json_handler.dirs.model_dir):
+            mkdir(self.json_handler.dirs.model_dir)
 
         # Сохранить модель
-        model.save(join_paths(self.json_handler.dirs.modelDir, "model.h5"))
+        model.save(join_paths(self.json_handler.dirs.model_dir, "model.h5"))
 
         # Детектировать лица
         self.detect_person()
@@ -304,7 +304,7 @@ class FaceReconizer():
     # Обученной модели для классификации
     def detect_person(self):
         # Загружает обученную модель
-        model = load_model(join_paths(self.json_handler.dirs.modelDir, "model.h5"))
+        model = load_model(join_paths(self.json_handler.dirs.model_dir, "model.h5"))
 
         # Преобразование словаря в один массив
         labels = {v: k for k, v in self.json_handler.labels.items()}

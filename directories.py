@@ -1,12 +1,12 @@
-from os.path import join as pathJoin, dirname, \
+from os.path import join as join_paths, dirname, \
     abspath
 
 # Класс для хранения каталогов
 class Directories():
-    # Нахождение нужных для работы каталогов
-    baseDir = dirname(abspath(__file__))
-    modelDir = pathJoin(baseDir, "Model")
-    imagesDir = pathJoin(baseDir, "Images")
-    trainDir = pathJoin(imagesDir, "Train")
-    valDir = pathJoin(imagesDir, "Validation")
-    testDir = pathJoin(imagesDir, "Test")
+    # Инициализация нужных для работы каталогов
+    base_dir = dirname(abspath(__file__))
+    model_dir = join_paths(base_dir, "Model")
+    images_dir = join_paths(base_dir, "Images")
+    train_dir = join_paths(images_dir, "Train")
+    val_dir = join_paths(images_dir, "Validation")
+    test_dir = join_paths(images_dir, "Test")

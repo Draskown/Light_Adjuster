@@ -4,11 +4,10 @@ from keras_preprocessing.image import ImageDataGenerator
 from os import mkdir, walk, remove as remove_file
 from os.path import join as join_paths, \
     exists as path_exists, basename
-from keras import losses
 from keras.models import Sequential, load_model
 from keras.layers import Conv2D, MaxPooling2D,\
     Flatten, Dense, Dropout
-from loadJson import JsonHandler
+from json_loader import JsonHandler
 
 # Глобальные переменные настройки
 # Для обучения нейронной сети
@@ -35,7 +34,7 @@ class FaceReconizer():
         self.train()
 
     # Подготавливает тренировочный и валидационные датасеты
-    def prepare_dataset(self):
+    def prepare_dataset(self) -> None:
         # Проверка на то, был ли датасет прежде сформирован
         # И если был - выйти из метода
         if self.json_handler.get_dataset_state() == 1:
@@ -149,7 +148,7 @@ class FaceReconizer():
 
     # Возвращает лицо самого большого размера
     # Чтобы в приоритете был человек ближе к камере
-    def find_face(self, cascade, frame):
+    def find_face(self, cascade: list, frame: cv2.Mat) -> cv2.Mat:
         # Инициализация наибольшего размера как первого лица
         max_area = (cascade[0, 0] + cascade[0, 2]) *\
                     (cascade[0, 1] + cascade[0, 3])
@@ -172,7 +171,7 @@ class FaceReconizer():
 
 
     # Применяет случайную обработку к изображению
-    def tweak_image(self, img):
+    def tweak_image(self, img) -> cv2.Mat:
         # Добавляет шум к изображению
         noise = np.zeros(img.shape, np.int16)
         cv2.randn(noise, 0, 30)

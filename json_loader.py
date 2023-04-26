@@ -16,7 +16,7 @@ class JsonHandler():
         self.load_labels()
     
     # Загружает найденные каталоги категорий в json файл
-    def load_labels(self):
+    def load_labels(self) -> None:
         # Открывыает json файл, где хранятся нужные сведения
         with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             a = load(f)
@@ -43,14 +43,14 @@ class JsonHandler():
             dump(a, f, ensure_ascii=False, indent=4)
 
     # Возвращает состояние модели нейронной сети
-    def get_model_state(self):
+    def get_model_state(self) -> int:
         # Открывает json файл
         with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # И возвращает нужное значение
             return load(f)["model_is_ok"]
 
     # Устанавливает состояние модели нейронной сети
-    def set_model_state(self, state):
+    def set_model_state(self, state: int) -> None:
         # Открывает файл для чтения
         with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # Записывает в локальный словарь необходимое значение
@@ -63,14 +63,14 @@ class JsonHandler():
             dump(a, f, ensure_ascii=False, indent=4)
 
     # Возвращает состояние датасета для нейронной сети
-    def get_dataset_state(self):
+    def get_dataset_state(self) -> int:
         # Открывает json файл
         with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # И возвращает нужное значение
             return load(f)["dataset_created"]
 
     # Устанавливает состояние датасета для нейронной сети
-    def set_dataset_state(self, state):
+    def set_dataset_state(self, state: int) -> None:
         # Открывает файл для чтения
         with open(join_paths(self.dirs.base_dir, "mainInfo.json"), "r") as f:
             # Записывает в локальный словарь необходимое значение

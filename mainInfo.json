@@ -5,11 +5,10 @@
         "02": 2,
         "03": 3
     },
-    "parameters": {
-        "left": 1,
-        "right": 2,
-        "seat": 3
+    "light": {
+        "exp": 0,
+        "temp": 0
     },
-    "model_is_ok": 1,
-    "dataset_created": 1
+    "model_is_ok": 0,
+    "dataset_created": 0
 }

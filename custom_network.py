@@ -8,17 +8,22 @@ from keras.models import Sequential, load_model
 from keras.layers import Conv2D, MaxPooling2D,\
     Flatten, Dense, Dropout
 from json_loader import JsonHandler
+from keras.callbacks import EarlyStopping
+from keras.optimizers import Adam
 
 # Глобальные переменные настройки
 # Для обучения нейронной сети
-BATCH = 20
-DROPOUT = 0.5
-EPOCHS = 100
+BATCH = 25
+DROPOUT = 0.2
+EPOCHS = 1000
+LEARNING_RATE = 0.0001
 # Для нахождения лиц
 SCALE_FACTOR = 1.2
 MIN_NEIGHBOURS = 3
 # Для ширины изображения, подающегося на вход каскадов Хаара
 TARGET_IMG_WIDTH = 350
+# Для процента изображений, которые используются для валидации
+SPLIT_RATE = 0.2
 # Для максимального количества изображений датасета
 MAX_IMAGES = 500
 # Количество обработанных дополнительных изображений
@@ -43,11 +48,7 @@ class FaceReconizer():
         # Для каждого из найденных категорий
         # Сделать отдельную папку в каталоге для тестовых и валидационных изображений
         # Если они не существуют
-        for label in self.json_handler.labels:
-            path = join_paths(self.json_handler.dirs.test_dir, label)
-            if not path_exists(path):
-                mkdir(path)
-            
+        for label in self.json_handler.labels:            
             path = join_paths(self.json_handler.dirs.val_dir, label)
             if not path_exists(path):
                 mkdir(path)
@@ -59,7 +60,7 @@ class FaceReconizer():
         # Поиск всех изображений в файле проекта
         for root, _, files in walk(self.json_handler.dirs.images_dir):
             # Инициализация индексов для переименования изображений
-            index_test = index_train = index_val = common_index = 0
+            index_val = index_train = common_index = 0
             
             # Пропустить каталог с тестовыми и валидационными изображениями
             if "Images\\Test" in root or "Images\\Validation" in root:
@@ -128,14 +129,9 @@ class FaceReconizer():
                     
                     # Каждое четвёртое изображение из подготовленных
                     # Изображений загружается в каталог валидации
-                    if common_index % 7 == 0:
+                    if common_index % int(1 / (SPLIT_RATE % 1)) == 0:
                         self.split_dataset(face, self.json_handler.dirs.val_dir, label, index_val)
                         index_val += TWEAKED_IMAGES
-                    # Каждое седьмое изображение из подготовленных
-                    # Загружается в каталог теста
-                    elif common_index % 10 == 0:
-                        self.split_dataset(face, self.json_handler.dirs.test_dir, label, index_test)
-                        index_test += TWEAKED_IMAGES
                     else:
                         self.split_dataset(face, self.json_handler.dirs.train_dir, label, index_train)
                         index_train += TWEAKED_IMAGES
@@ -229,13 +225,19 @@ class FaceReconizer():
 
         # Инициализация структуры нейронной сети    
         model = Sequential([
-            Conv2D(16, (3, 3), padding="same", activation="relu", input_shape=(64, 64, 3)),
+            Conv2D(32, (4, 4), padding="same", activation="relu", input_shape=(64, 64, 3)),
+            MaxPooling2D((2, 2)),
+            Dropout(DROPOUT),
+            Conv2D(16, (3, 3), padding="same", activation="relu"),
             Dropout(DROPOUT),
             Conv2D(16, (3, 3), padding="same", activation="relu"),
             MaxPooling2D((2, 2)),
+            Dropout(DROPOUT),
             #
             Conv2D(8, (3, 3), padding="same", activation="relu"),
+            Dropout(DROPOUT),
             Conv2D(8, (3, 3), padding="same", activation="relu"),
+            Dropout(DROPOUT),
             MaxPooling2D((2, 2)),
             #
             Flatten(),
@@ -247,7 +249,7 @@ class FaceReconizer():
         # Для нейронной сети
         model.compile(
             loss="categorical_crossentropy",
-            optimizer="adam",
+            optimizer=Adam(learning_rate=LEARNING_RATE),
             metrics=["accuracy"]
         )
 
@@ -270,13 +272,7 @@ class FaceReconizer():
             class_mode="categorical",
         )
 
-        # Генерация данных из тестового каталога
-        test_data = data_generator.flow_from_directory(
-            self.json_handler.dirs.test_dir,
-            target_size=(64, 64),
-            batch_size=BATCH,
-            class_mode="categorical",
-        )
+        early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
         # Тренировка нейронной сети
         model.fit(
@@ -284,18 +280,10 @@ class FaceReconizer():
             steps_per_epoch=len(train_data),
             epochs=EPOCHS,
             validation_data=val_data,
-            validation_steps=len(test_data)
+            validation_steps=len(val_data),
+            callbacks=[early_stop]
         )
-
-        # Провести тест работы нейронной сети
-        _, test_accuracy = model.evaluate(test_data, steps=len(test_data))
-
-        # И если точность достаточно высокая
-        # Можно считать, что модель дальше обучать
-        # Не имеет смысла
-        if test_accuracy > 0.85:
-            self.json_handler.set_model_state(1)
-
+        
         # Если папка Models не существует - создать её
         if not path_exists(self.json_handler.dirs.model_dir):
             mkdir(self.json_handler.dirs.model_dir)
@@ -338,8 +326,8 @@ class FaceReconizer():
             # Детектирует лицо на кадре с ипользованием каскада
             faces_front = face_cascade.detectMultiScale(
                 cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY),
-                scaleFactor=SCALE_FACTOR,
-                minNeighbors=MIN_NEIGHBOURS
+                scaleFactor=1.3,
+                minNeighbors=5
             )
 
             # Цикл итерации каждого из найденных лиц

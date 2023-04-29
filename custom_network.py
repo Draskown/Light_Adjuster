@@ -183,6 +183,13 @@ class FaceReconizer():
         M = cv2.getRotationMatrix2D((cols/2,rows/2), angle, 1)
         img = cv2.warpAffine(img, M, (cols, rows))
 
+        # Осветляет или затемняет изображение
+        img_float = np.float32(img)
+        brightness_value = np.random.uniform(-0.2, 0.2) * 255.0
+        img_float += brightness_value
+        img_float = np.clip(img_float, 0, 255)
+        img = np.uint8(img_float)
+
         # Переворачивает изображение по горизонтали
         if random.randint(0, 1) == 1:
             img = cv2.flip(img, 1)

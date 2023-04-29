@@ -11,9 +11,9 @@ from json_loader import JsonHandler
 
 # Глобальные переменные настройки
 # Для обучения нейронной сети
-BATCH = 5
+BATCH = 20
 DROPOUT = 0.5
-EPOCHS = 15
+EPOCHS = 100
 # Для нахождения лиц
 SCALE_FACTOR = 1.2
 MIN_NEIGHBOURS = 3
@@ -30,7 +30,7 @@ class FaceReconizer():
         # Инициализация объекта класса
         # Обработчика json файла
         # И вызов метода, выполняющего обучение сети
-        self.json_handler = JsonHandler()
+        self.json_handler = JsonHandler("Custom NN Images")
         self.train()
 
     # Подготавливает тренировочный и валидационные датасеты
@@ -128,16 +128,16 @@ class FaceReconizer():
                     
                     # Каждое четвёртое изображение из подготовленных
                     # Изображений загружается в каталог валидации
-                    if common_index % 4 == 0:
+                    if common_index % 7 == 0:
                         self.split_dataset(face, self.json_handler.dirs.val_dir, label, index_val)
                         index_val += TWEAKED_IMAGES
                     # Каждое седьмое изображение из подготовленных
                     # Загружается в каталог теста
-                    elif common_index % 7 == 0:
+                    elif common_index % 10 == 0:
                         self.split_dataset(face, self.json_handler.dirs.test_dir, label, index_test)
                         index_test += TWEAKED_IMAGES
                     else:
-                        self.split_dataset(face, self.json_handler.dirs.train_dir, label, index_test)
+                        self.split_dataset(face, self.json_handler.dirs.train_dir, label, index_train)
                         index_train += TWEAKED_IMAGES
 
                     # Удаляет обработанное полное изображение
@@ -323,7 +323,10 @@ class FaceReconizer():
         # Цикл обработки видеопотока
         while True:
             # Считывает один кадр с видеопотока
-            _, frame = cap.read()
+            ret, frame = cap.read()
+
+            if not ret:
+                continue
 
             # Детектирует лицо на кадре с ипользованием каскада
             faces_front = face_cascade.detectMultiScale(
@@ -353,7 +356,7 @@ class FaceReconizer():
 
                 # Выводит на изображение текст предполагаемой категории
                 frame = cv2.putText(frame, 
-                                    str(result), 
+                                    list(self.json_handler.labels.keys())[result], 
                                     (50, 50), 
                                     cv2.FONT_HERSHEY_COMPLEX, 
                                     1, (0, 255, 0), 2, cv2.LINE_AA)
@@ -362,7 +365,7 @@ class FaceReconizer():
                 # Предполагаемой категории
                 frame = cv2.putText(frame, 
                                     str(result_list[0][result]), 
-                                    (100, 50), 
+                                    (400, 50), 
                                     cv2.FONT_HERSHEY_COMPLEX, 
                                     1, (0, 255, 0), 2, cv2.LINE_AA)
 

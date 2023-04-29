@@ -1,10 +1,15 @@
 {
     "labels": {
+        "Alexander F": 0,
+        "Andrei K": 1,
+        "Dmitry I": 2,
+        "Mikhail F": 3,
+        "Mikhail U": 4
     },
     "light": {
         "exp": 0,
         "temp": 0
     },
     "model_is_ok": 0,
-    "dataset_created": 0
+    "dataset_created": 1
 }

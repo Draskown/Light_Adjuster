@@ -10,12 +10,15 @@ from keras.layers import Conv2D, MaxPooling2D,\
 from json_loader import JsonHandler
 from keras.callbacks import EarlyStopping
 from keras.optimizers import Adam
+from keras.losses import SparseCategoricalCrossentropy as SCC
+from keras import regularizers
 
 # Глобальные переменные настройки
 # Для обучения нейронной сети
 BATCH = 25
+IMAGE_SIZE = (224, 224)
 DROPOUT = 0.2
-EPOCHS = 1000
+EPOCHS = 100
 LEARNING_RATE = 0.0001
 # Для нахождения лиц
 SCALE_FACTOR = 1.2
@@ -40,19 +43,6 @@ class FaceReconizer():
 
     # Подготавливает тренировочный и валидационные датасеты
     def prepare_dataset(self) -> None:
-        # Проверка на то, был ли датасет прежде сформирован
-        # И если был - выйти из метода
-        if self.json_handler.get_dataset_state() == 1:
-            return
-        
-        # Для каждого из найденных категорий
-        # Сделать отдельную папку в каталоге для тестовых и валидационных изображений
-        # Если они не существуют
-        for label in self.json_handler.labels:            
-            path = join_paths(self.json_handler.dirs.val_dir, label)
-            if not path_exists(path):
-                mkdir(path)
-
         # Инициализация каскадов Хаара для нахождения лиц в анфас и профиль
         front_face_cascade = cv2.CascadeClassifier("Cascades/haarcascade_frontalface_default.xml")
         profile_face_cascade = cv2.CascadeClassifier("Cascades/haarcascade_profileface.xml")
@@ -60,11 +50,7 @@ class FaceReconizer():
         # Поиск всех изображений в файле проекта
         for root, _, files in walk(self.json_handler.dirs.images_dir):
             # Инициализация индексов для переименования изображений
-            index_val = index_train = common_index = 0
-            
-            # Пропустить каталог с тестовыми и валидационными изображениями
-            if "Images\\Test" in root or "Images\\Validation" in root:
-                continue
+            index_train = common_index = 0
             
             # Цикл всех файлов
             for file in files:
@@ -127,14 +113,9 @@ class FaceReconizer():
                     else:
                         common_index += 1
                     
-                    # Каждое четвёртое изображение из подготовленных
-                    # Изображений загружается в каталог валидации
-                    if common_index % int(1 / (SPLIT_RATE % 1)) == 0:
-                        self.split_dataset(face, self.json_handler.dirs.val_dir, label, index_val)
-                        index_val += TWEAKED_IMAGES
-                    else:
-                        self.split_dataset(face, self.json_handler.dirs.train_dir, label, index_train)
-                        index_train += TWEAKED_IMAGES
+                    # Добавить изображений с изменениями для цели аугментации
+                    self.split_dataset(face, self.json_handler.dirs.train_dir, label, index_train)
+                    index_train += TWEAKED_IMAGES
 
                     # Удаляет обработанное полное изображение
                     remove_file(join_paths(file_path, file))
@@ -144,7 +125,9 @@ class FaceReconizer():
 
     # Возвращает лицо самого большого размера
     # Чтобы в приоритете был человек ближе к камере
-    def find_face(self, cascade: list, frame: cv2.Mat) -> cv2.Mat:
+    def find_face(self, 
+                  cascade: list, 
+                  frame: cv2.Mat) -> cv2.Mat:
         # Инициализация наибольшего размера как первого лица
         max_area = (cascade[0, 0] + cascade[0, 2]) *\
                     (cascade[0, 1] + cascade[0, 3])
@@ -167,7 +150,8 @@ class FaceReconizer():
 
 
     # Применяет случайную обработку к изображению
-    def tweak_image(self, img) -> cv2.Mat:
+    def tweak_image(self, 
+                    img: cv2.Mat) -> cv2.Mat:
         # Добавляет шум к изображению
         noise = np.zeros(img.shape, np.int16)
         cv2.randn(noise, 0, 30)
@@ -195,7 +179,11 @@ class FaceReconizer():
 
     # Разделяет датасет на поданые каталоги
     # И добавляет обработанные дупликаты
-    def split_dataset(self, face, destination, label, index):
+    def split_dataset(self,
+                      face: cv2.Mat, 
+                      destination: str, 
+                      label: str, 
+                      index: int) -> None:
         # Новое расположение файла в каталоге
         new_file_path = join_paths(destination, label)
         # Для каждого тренировочного файла должно быть
@@ -212,78 +200,104 @@ class FaceReconizer():
             index += 1
 
     # Обучает нейронную сеть
-    def train(self):
+    def train(self) -> None:
         # Подготавливает датасет для тренировки нейронной сети
         # И получает от метода необходимые
         # Названия категорий и каталогов из файла json
-        self.prepare_dataset()
+        # Если датасет был прежде сформирован - пропустить этот шаг
+        if self.json_handler.get_dataset_state() == 0:
+            self.prepare_dataset()
 
         # Если модель обучена хорошо
         # То можно сразу перейти к детектированию
         if self.json_handler.get_model_state() == 1:
             self.detect_person()
 
-        # Инициализация структуры нейронной сети    
+        # Инициализация генератора данных
+        data_generator = ImageDataGenerator(
+            rescale=1./255,
+            validation_split=SPLIT_RATE,
+        )
+
+        # Генерация данных из тренировочного каталога
+        train_ds = data_generator.flow_from_directory(
+            self.json_handler.dirs.train_dir,
+            target_size=(IMAGE_SIZE),
+            batch_size=BATCH,
+            class_mode="sparse",
+            subset="training",
+            seed=123456
+        )
+
+        # Генерация данных из валидационного каталога
+        val_ds = data_generator.flow_from_directory(
+            self.json_handler.dirs.train_dir,
+            target_size=IMAGE_SIZE,
+            batch_size=BATCH,
+            class_mode="sparse",
+            subset="validation",
+            seed=123456,
+        )
+
+        # Инициализация структуры нейронной сети
         model = Sequential([
-            Conv2D(32, (4, 4), padding="same", activation="relu", input_shape=(64, 64, 3)),
-            MaxPooling2D((2, 2)),
+            Conv2D(32, 4,
+                   padding="same", 
+                   activation="relu", 
+                   input_shape=(IMAGE_SIZE[0], IMAGE_SIZE[1], 3),
+                   kernel_regularizer=regularizers.l2(LEARNING_RATE)),
+            MaxPooling2D(),
             Dropout(DROPOUT),
-            Conv2D(16, (3, 3), padding="same", activation="relu"),
+            Conv2D(16, 3, 
+                   padding="same", 
+                   activation="relu",
+                   kernel_regularizer=regularizers.l2(LEARNING_RATE)),
             Dropout(DROPOUT),
-            Conv2D(16, (3, 3), padding="same", activation="relu"),
-            MaxPooling2D((2, 2)),
+            Conv2D(16, 3, 
+                   padding="same", 
+                   activation="relu",
+                   kernel_regularizer=regularizers.l2(LEARNING_RATE)),
+            MaxPooling2D(),
             Dropout(DROPOUT),
             #
-            Conv2D(8, (3, 3), padding="same", activation="relu"),
+            Conv2D(8, 3, 
+                   padding="same", 
+                   activation="relu",
+                   kernel_regularizer=regularizers.l2(LEARNING_RATE)),
             Dropout(DROPOUT),
-            Conv2D(8, (3, 3), padding="same", activation="relu"),
+            Conv2D(8, 3, 
+                   padding="same", 
+                   activation="relu",
+                   kernel_regularizer=regularizers.l2(LEARNING_RATE)),
             Dropout(DROPOUT),
-            MaxPooling2D((2, 2)),
+            MaxPooling2D(),
             #
             Flatten(),
             Dense(128, activation="relu"),
             Dense(len(self.json_handler.labels), activation="softmax")
+
         ])
 
         # Компиляция параметров потери, оптимизации и вывода
         # Для нейронной сети
         model.compile(
-            loss="categorical_crossentropy",
+            loss= SCC(),
             optimizer=Adam(learning_rate=LEARNING_RATE),
             metrics=["accuracy"]
-        )
-
-        # Инициализация генератора данных
-        data_generator = ImageDataGenerator(rescale=1 / 255.0)
-
-        # Генерация данных из тренировочного каталога
-        train_data = data_generator.flow_from_directory(
-            self.json_handler.dirs.train_dir,
-            target_size=(64, 64),
-            batch_size=BATCH,
-            class_mode="categorical"
-        )
-
-        # Генерация данных из валидационного каталога
-        val_data = data_generator.flow_from_directory(
-            self.json_handler.dirs.val_dir,
-            target_size=(64, 64),
-            batch_size=BATCH,
-            class_mode="categorical",
         )
 
         early_stop = EarlyStopping(monitor='val_loss', patience=10)
 
         # Тренировка нейронной сети
         model.fit(
-            train_data,
-            steps_per_epoch=len(train_data),
+            train_ds,
+            steps_per_epoch=len(train_ds),
             epochs=EPOCHS,
-            validation_data=val_data,
-            validation_steps=len(val_data),
+            validation_data=val_ds,
+            validation_steps=len(val_ds),
             callbacks=[early_stop]
         )
-        
+
         # Если папка Models не существует - создать её
         if not path_exists(self.json_handler.dirs.model_dir):
             mkdir(self.json_handler.dirs.model_dir)
@@ -296,7 +310,7 @@ class FaceReconizer():
 
     # Детектирует лица с видеопотока и подаёт на вход 
     # Обученной модели для классификации
-    def detect_person(self):
+    def detect_person(self) -> None:
         # Загружает обученную модель
         model = load_model(join_paths(self.json_handler.dirs.model_dir, "model.h5"))
 
@@ -339,7 +353,7 @@ class FaceReconizer():
                 img_array = frame[y:y + h, x:x + w]
 
                 # Нормализирует массив
-                new_array = cv2.resize(img_array, (64, 64)) / 255.0
+                new_array = cv2.resize(img_array, IMAGE_SIZE) / 255.0
                 new_array = np.expand_dims(new_array, axis=0)
 
                 # Использует модель для предположения
